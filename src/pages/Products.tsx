@@ -42,6 +42,22 @@ const Products = () => {
   const [discountValue, setDiscountValue] = useState(0)
   const [selectedProductForDiscount, setSelectedProductForDiscount] = useState<ProductDTO | null>(null)
 
+  // Helper function to truncate description to 3 words
+  const truncateDescription = (text: string | undefined, maxWords: number = 3): string => {
+    if (!text) return "";
+    const words = text.trim().split(/\s+/);
+    if (words.length <= maxWords) return text;
+    return words.slice(0, maxWords).join(" ") + "...";
+  };
+
+  // Helper function to truncate product name to 2 words
+  const truncateName = (text: string | undefined, maxWords: number = 2): string => {
+    if (!text) return "";
+    const words = text.trim().split(/\s+/);
+    if (words.length <= maxWords) return text;
+    return words.slice(0, maxWords).join(" ") + "...";
+  };
+
   const fetchCategories = async () => {
   try {
     const data = await getCategories()
@@ -99,19 +115,22 @@ const Products = () => {
   const handleAddProduct = async () => {
     setIsLoading(true)
     try {
+      // Auto-set promo to true if there's a discount applied
+      const hasDiscount = formData.discount && formData.discount > 0;
+      
       await productService.createProduct(
         {
           id: 0,
           name: formData.name,
           description: formData.description,
           category: formData.category,
-          price: formData.price,
+          price: formData.originalPrice, // Map price to originalPrice
           originalPrice: formData.originalPrice,
           stock: formData.stock,
           status: formData.status,
           discount: formData.discount || 0,
           photoPath: "",
-          promo: formData.promo
+          promo: hasDiscount // Auto-set promo if discount is applied
         },
         formData.photo || undefined
       )
@@ -146,9 +165,15 @@ const Products = () => {
     if (!editingProduct) return
     setIsLoading(true)
     try {
+      // Auto-set promo to true if there's a discount applied (price != originalPrice)
+      const updatedPrice = formData.originalPrice;
+      const hasDiscount = formData.discount && formData.discount > 0;
+      
       await productService.updateProduct(editingProduct.id, {
         ...editingProduct,
-        ...formData
+        ...formData,
+        price: updatedPrice,
+        promo: hasDiscount // Auto-set promo if discount is applied
       })
       await fetchProducts()
       setIsEditDialogOpen(false)
@@ -377,13 +402,15 @@ const applyDiscount = async () => {
             <div className="flex justify-center items-center p-8">جارٍ التحميل...</div>
           ) : (
             <>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-right">اسم المنتج</TableHead>
                     <TableHead className="text-right">الوصف </TableHead>
                     <TableHead className="text-right">الفئة</TableHead>
-                    <TableHead className="text-right">السعر</TableHead>
+                    <TableHead className="text-right">السعر الأصلي</TableHead>
+                    <TableHead className="text-right">السعر النهائي</TableHead>
                     <TableHead className="text-right">التخفيض</TableHead>
                     <TableHead className="text-right">العرض المميز</TableHead>
                     <TableHead className="text-right">المخزون</TableHead>
@@ -394,10 +421,15 @@ const applyDiscount = async () => {
                 <TableBody>
                   {paginatedProducts.map(product => (
                     <TableRow key={product.id}>
-                      <TableCell className="font-medium text-right">{product.name}</TableCell>
-                      <TableCell className="font-medium text-right">{product.description}</TableCell>
+                      <TableCell className="font-medium text-right" title={product.name}>
+                        {truncateName(product.name)}
+                      </TableCell>
+                      <TableCell className="font-medium text-right" title={product.description}>
+                        {truncateDescription(product.description)}
+                      </TableCell>
                       <TableCell className="text-right">{product.category}</TableCell>
-                      <TableCell className="text-right">{product.price}</TableCell>
+                      <TableCell className="text-right font-bold">{product.originalPrice} ر.ق</TableCell>
+                      <TableCell className="text-right font-bold text-green-600">{product.price} ر.ق</TableCell>
                       <TableCell className="text-right">
                         {product.discount ? <Badge>{product.discount}% خصم</Badge> : "لا يوجد"}
                       </TableCell>
@@ -459,6 +491,7 @@ const applyDiscount = async () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
@@ -535,8 +568,9 @@ const applyDiscount = async () => {
               <Label htmlFor="edit-price">السعر</Label>
               <Input
                 id="edit-price"
+                type="number"
                 value={formData.originalPrice}
-                onChange={(e) => setFormData({ ...formData, price: Number(e.target.value )})}
+                onChange={(e) => setFormData({ ...formData, originalPrice: Number(e.target.value )})}
                 className="text-right h-8"
               />
             </div>

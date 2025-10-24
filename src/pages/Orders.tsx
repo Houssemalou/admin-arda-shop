@@ -177,6 +177,21 @@ const filteredOrders = (ordersData?.content || []).filter(order => {
       {/* Orders Table */}
       <Card>
         <CardContent className="p-0">
+          {filteredOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center">
+              <div className="mb-4">
+                <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                لا توجد طلبات
+              </h3>
+              <p className="text-muted-foreground">
+                {searchTerm || selectedStatus !== "all" 
+                  ? "لم يتم العثور على طلبات تطابق معايير البحث" 
+                  : "لا توجد طلبات حالياً"}
+              </p>
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -233,6 +248,8 @@ const filteredOrders = (ordersData?.content || []).filter(order => {
               ))}
             </TableBody>
           </Table>
+          )}
+          {filteredOrders.length > 0 && (
           <div className="flex justify-center items-center space-x-3 mt-6 rtl:space-x-reverse">
             {/* Bouton précédent */}
             <Button
@@ -265,6 +282,7 @@ const filteredOrders = (ordersData?.content || []).filter(order => {
               التالي
             </Button>
           </div>
+          )}
 
 
         </CardContent>
