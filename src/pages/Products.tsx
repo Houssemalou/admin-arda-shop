@@ -32,7 +32,7 @@ const Products = () => {
     stock: 0,
     status: "متوفر",
     discount: 0,
-    photo: null as File | null,
+    photos: [] as File[],
     promo: false
   })
   const [currentPage, setCurrentPage] = useState(1)
@@ -107,9 +107,31 @@ const Products = () => {
       stock: 0,
       status: "متوفر",
       discount: 0,
-      photo: null,
+      photos: [],
       promo: false
     })
+  }
+
+  // Valider les extensions des images
+  const validateImageExtension = (file: File): boolean => {
+    const validExtensions = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+    return validExtensions.includes(file.type);
+  }
+
+  // Gérer la sélection de plusieurs images
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const invalidFiles = filesArray.filter(file => !validateImageExtension(file));
+      
+      if (invalidFiles.length > 0) {
+        alert(`Erreur: Les fichiers suivants ont une extension invalide. Utilisez uniquement .png, .jpeg, .jpg, .webp ou .gif`);
+        e.target.value = ''; // Réinitialiser l'input
+        return;
+      }
+      
+      setFormData({ ...formData, photos: filesArray });
+    }
   }
 
   const handleAddProduct = async () => {
@@ -132,7 +154,7 @@ const Products = () => {
           photoPath: "",
           promo: hasDiscount // Auto-set promo if discount is applied
         },
-        formData.photo || undefined
+        formData.photos.length > 0 ? formData.photos : undefined
       )
       await fetchProducts()
       setIsAddDialogOpen(false)
@@ -155,7 +177,7 @@ const Products = () => {
       stock: product.stock,
       status: product.status,
       discount: product.discount || 0,
-      photo: null,
+      photos: [],
       promo: false
     })
     setIsEditDialogOpen(true)
@@ -169,12 +191,19 @@ const Products = () => {
       const updatedPrice = formData.originalPrice;
       const hasDiscount = formData.discount && formData.discount > 0;
       
+      // Mettre à jour les informations du produit
       await productService.updateProduct(editingProduct.id, {
         ...editingProduct,
         ...formData,
         price: updatedPrice,
         promo: hasDiscount // Auto-set promo if discount is applied
       })
+      
+      // Ajouter les nouvelles images si elles existent
+      if (formData.photos.length > 0) {
+        await productService.addImagesToProduct(editingProduct.id, formData.photos)
+      }
+      
       await fetchProducts()
       setIsEditDialogOpen(false)
       setEditingProduct(null)
@@ -347,12 +376,19 @@ const applyDiscount = async () => {
                     />
                   </div>
                 <div className="space-y-1">
-                  <Label htmlFor="photo">صورة المنتج</Label>
+                  <Label htmlFor="photos">صور المنتج (PNG, JPEG, JPG, WEBP, GIF)</Label>
                   <Input
-                    id="photo"
+                    id="photos"
                     type="file"
-                    onChange={(e) => setFormData({ ...formData, photo: e.target.files ? e.target.files[0] : null })}
+                    multiple
+                    accept=".png,.jpeg,.jpg,.webp,.gif"
+                    onChange={handlePhotoChange}
                   />
+                  {formData.photos.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {formData.photos.length} صورة محددة
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -596,12 +632,19 @@ const applyDiscount = async () => {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="edit-photo">صورة المنتج</Label>
+              <Label htmlFor="edit-photos">صور المنتج (PNG, JPEG, JPG, WEBP, GIF)</Label>
               <Input
-                id="edit-photo"
+                id="edit-photos"
                 type="file"
-                onChange={(e) => setFormData({ ...formData, photo: e.target.files ? e.target.files[0] : null })}
+                multiple
+                accept=".png,.jpeg,.jpg,.webp,.gif"
+                onChange={handlePhotoChange}
               />
+              {formData.photos.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {formData.photos.length} صورة محددة
+                </p>
+              )}
             </div>
           </div>
           <div className="flex gap-2">

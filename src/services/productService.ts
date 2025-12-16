@@ -14,10 +14,10 @@ export const getProductById = async (id: number): Promise<ProductDTO> => {
   return res.data;
 };
 
-// Créer un produit avec éventuellement une photo
+// Créer un produit avec plusieurs photos
 export const createProduct = async (
   product: ProductDTO,
-  photo?: File
+  photos?: File[]
 ): Promise<ProductDTO> => {
   console.log(product)
   const formData = new FormData();
@@ -25,7 +25,13 @@ export const createProduct = async (
     "product",
     new Blob([JSON.stringify(product)], { type: "application/json" })
   );
-  if (photo) formData.append("photo", photo);
+  
+  // Ajouter toutes les photos au FormData
+  if (photos && photos.length > 0) {
+    photos.forEach((photo) => {
+      formData.append("photos", photo);
+    });
+  }
 
   const res = await apiClient.post<ProductDTO>("/products", formData, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -45,6 +51,24 @@ export const updateProduct = async (
 // Supprimer un produit
 export const deleteProduct = async (id: number): Promise<void> => {
   await apiClient.delete(`/products/${id}`);
+};
+
+// Ajouter des images à un produit existant
+export const addImagesToProduct = async (
+  id: number,
+  photos: File[]
+): Promise<ProductDTO> => {
+  const formData = new FormData();
+  
+  // Ajouter toutes les photos au FormData
+  photos.forEach((photo) => {
+    formData.append("photos", photo);
+  });
+
+  const res = await apiClient.post<ProductDTO>(`/products/${id}/images`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
 };
 
 
