@@ -86,9 +86,13 @@ export const updateStatus = async (
 // Appliquer un discount à toute une catégorie
 
 
-// URL pour récupérer l'image d'un produit
-export const getProductImageUrl = (filename: string): string => {
-  return `${process.env.REACT_APP_API_BASE_URL}/products/images/${filename}`;
+// Supprimer une image d'un produit par nom de fichier
+export const deleteImageFromProduct = async (
+  productId: number,
+  filename: string
+): Promise<ProductDTO> => {
+  const res = await apiClient.delete<ProductDTO>(`/products/${productId}/images/${filename}`);
+  return res.data;
 };
 export const applyDiscount = async (
   productId: number,
@@ -107,5 +111,10 @@ export const applyDiscountToCategory = async (
   const body: CategoryDiscountRequest = { categoryName, discount };
   const res = await apiClient.put<ProductDTO[]>(`/categories/discount`, body);
   return res.data;
+};
+
+// URL pour récupérer l'image d'un produit
+export const getProductImageUrl = (filename: string): string => {
+  return `${import.meta.env.VITE_API_BASE_URL}/products/images/${filename}`;
 };
 

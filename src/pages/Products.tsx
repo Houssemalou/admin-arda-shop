@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Filter, Edit, Trash2, Tag, Percent } from "lucide-react"
+import { Plus, Search, Filter, Edit, Trash2, Tag, Percent, X } from "lucide-react"
 import { ProductDTO } from "../models/types"
 import * as productService from "../services/productService"
 import { useQuery } from "@tanstack/react-query"
@@ -224,6 +224,22 @@ const Products = () => {
       console.error(err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDeleteImage = async (productId: number, imageUrl: string) => {
+    try {
+      // Extract filename from the full URL
+      const filename = imageUrl.split('/').pop() || '';
+      const updatedProduct = await productService.deleteImageFromProduct(productId, filename)
+      // Update the editing product with the new images
+      if (editingProduct) {
+        setEditingProduct(updatedProduct)
+      }
+      // Also update the products list
+      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p))
+    } catch (err) {
+      console.error('Failed to delete image:', err)
     }
   }
 
@@ -589,47 +605,51 @@ const applyDiscount = async () => {
                 className="text-right h-8"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="edit-category">الفئة</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                <SelectTrigger className="text-right h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="edit-category">الفئة</Label>
+                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                  <SelectTrigger className="text-right h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-price">السعر</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  value={formData.originalPrice}
+                  onChange={(e) => setFormData({ ...formData, originalPrice: Number(e.target.value )})}
+                  className="text-right h-8"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="edit-price">السعر</Label>
-              <Input
-                id="edit-price"
-                type="number"
-                value={formData.originalPrice}
-                onChange={(e) => setFormData({ ...formData, originalPrice: Number(e.target.value )})}
-                className="text-right h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="edit-stock">المخزون</Label>
-              <Input
-                id="edit-stock"
-                type="number"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
-                className="text-right h-8"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="edit-status">الحالة</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger className="text-right h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="edit-stock">المخزون</Label>
+                <Input
+                  id="edit-stock"
+                  type="number"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
+                  className="text-right h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-status">الحالة</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger className="text-right h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1">
               <Label htmlFor="edit-photos">صور المنتج (PNG, JPEG, JPG, WEBP, GIF)</Label>
@@ -646,6 +666,35 @@ const applyDiscount = async () => {
                 </p>
               )}
             </div>
+            {editingProduct?.images && editingProduct.images.length > 0 && (
+              <div className="space-y-1">
+                <Label>الصور الحالية</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {editingProduct.images.map((image, index) => {
+                    // Only show delete button for images hosted on our server
+                    const isLocalImage = image.includes('/products/images/');
+                    return (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image}
+                          alt={`Product image ${index + 1}`}
+                          className="w-full h-16 object-cover rounded border"
+                        />
+                        {isLocalImage && (
+                          <button
+                            onClick={() => handleDeleteImage(editingProduct.id, image)}
+                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="حذف الصورة"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Button onClick={handleEditProduct} className="flex-1" disabled={isLoading}>
