@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input"
 import { jsPDF } from "jspdf";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { toast } from "@/hooks/use-toast"
 
 import { 
   Eye,
@@ -15,10 +17,11 @@ import {
   Phone,
   Receipt,
   Shield,
-  User
+  User,
+  Trash2
 } from "lucide-react"
 import html2canvas from "html2canvas";
-import { getOrders, updateStatus } from "../services/orderService";
+import { getOrders, updateStatus, deleteOrder } from "../services/orderService";
 import { OrderDTO, StatusRequest } from "../models/types";
 interface PageableResponse<T> {
   content: T[];
@@ -31,6 +34,8 @@ const Orders = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<OrderDTO | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 const [currentPage, setCurrentPage] = useState(0);
 const [pageSize, setPageSize] = useState(10);
   const queryClient = useQueryClient();
@@ -111,6 +116,37 @@ const { data: ordersData, isLoading } = useQuery<PageableResponse<OrderDTO>, Err
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast({
+        title: "تم الحذف بنجاح",
+        description: "تم حذف الطلب بنجاح",
+      });
+      setIsDeleteDialogOpen(false);
+      setOrderToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء حذف الطلب",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteClick = (orderId: string) => {
+    setOrderToDelete(orderId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (orderToDelete) {
+      deleteMutation.mutate(orderToDelete);
+    }
+  };
 
   const openOrderDetails = (order: OrderDTO) => {
     setSelectedOrder(order);
@@ -240,9 +276,19 @@ const filteredOrders = (ordersData?.content || []).filter(order => {
                 </Select>
                 </TableCell>
                 <TableCell className="text-right">
-                <Button size="sm" variant="outline" onClick={() => openOrderDetails(order)}>
-                  <Eye className="h-4 w-4" />
-                </Button>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="outline" onClick={() => openOrderDetails(order)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => handleDeleteClick(order.orderId)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
               ))}
@@ -573,6 +619,28 @@ const filteredOrders = (ordersData?.content || []).filter(order => {
 </div>
 
 </Dialog>
+
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              هل أنت متأكد من حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 {/* Section PDF cachée */}
 
 
